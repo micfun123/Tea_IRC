@@ -1,11 +1,41 @@
 import socket
 import threading
 import re
+import os
+import json
 
-server = "irc.libera.chat"
-port = 6667
-channel = "###test"  # Default channel
-nickname = "Testaccount"
+def load_config(filename):
+    try:
+        with open(filename, "r") as file:
+            config = json.load(file)
+        return config
+    except FileNotFoundError:
+        print(f"Config file {filename} not found.")
+        print("Please create a config file (config.json) with the following format:")
+        print(
+            """
+{
+    "server": "irc.libera.chat",
+    "port": 6667,
+    "channel": "###test",
+    "nickname": "Testaccount"
+}
+        """
+        )
+        exit()
+
+
+config = load_config("config.json")
+
+server = config["server"]
+port = config["port"]
+channel = config["channel"]
+nickname = config["nickname"]
+
+print(f"Server: {server}")
+print(f"Port: {port}")
+print(f"Channel: {channel}")
+print(f"Nickname: {nickname}")
 
 if nickname.startswith("$") or nickname.startswith(":"):
     print(
@@ -23,19 +53,23 @@ def send_message(sock, channel, message):
 
 
 def receive_messages(sock):
-    while True:
-        data = sock.recv(4096).decode().strip("\n\r")
-        # Clean the message
-        data = re.sub(r"[\x02\x1f\x1d\x1e]", "", data)
-        # Extract the sender's name and message content
-        match = re.match(r":(\S+)!\S+ PRIVMSG (\S+) :(.*)", data)
-        if match:
-            sender = match.group(1)
-            message = match.group(3)
-            print(f"{sender}: {message}")
-        elif "353" in data:  # NAMES response
-            names = data.split(":")[-1].strip("\n\r").split()
-            print(f"Users in {channel}: {', '.join(names)}")
+    try:
+        while True:
+            data = sock.recv(4096).decode().strip("\n\r")
+            # Clean the message
+            data = re.sub(r"[\x02\x1f\x1d\x1e]", "", data)
+            # Extract the sender's name and message content
+            match = re.match(r":(\S+)!\S+ PRIVMSG (\S+) :(.*)", data)
+            if match:
+                sender = match.group(1)
+                message = match.group(3)
+                print(f"{sender}: {message}")
+            elif "353" in data:  # NAMES response
+                names = data.split(":")[-1].strip("\n\r").split()
+                print(f"Users in {channel}: {', '.join(names)}")
+    except ConnectionAbortedError:
+        pass  # Ignore the error when the connection is closed
+
 
 
 def main():
@@ -46,7 +80,6 @@ def main():
     irc_socket.send(f"NICK {nickname}\r\n".encode())
     print(f"Nickname set to {nickname}")
     irc_socket.send(f"JOIN {channel}\r\n".encode())
-    print(f"Joined channel {channel}")
 
     send_thread = threading.Thread(target=send_loop, args=(irc_socket,))
     receive_thread = threading.Thread(target=receive_messages, args=(irc_socket,))

@@ -1,0 +1,7 @@
+{
+    "server": "irc.libera.chat",
+    "port": 6667,
+    "channel": "###test",
+    "nickname": "Testaccount"
+}
+  
