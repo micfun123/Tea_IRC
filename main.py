@@ -95,6 +95,7 @@ def send_loop(sock):
             break
         elif message.startswith("/join"):
             new_channel = message.split(" ")[1]
+            sock.send(f"PART {channel}\r\n".encode())
             sock.send(f"JOIN {new_channel}\r\n".encode())
             channel = new_channel  
         elif message.startswith("/msg"):
